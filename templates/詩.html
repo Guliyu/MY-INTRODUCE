@@ -24,14 +24,14 @@
             scrollbar-color: #8c7b6d transparent;
         }
 
-        /* 新增：自訂背景圖層，設定 50% 透明度 */
+        /* 自訂背景圖層，設定 50% 透明度。等你之後換上喜歡的網址 */
         .custom-bg {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background-image: url('https://share.google/UHL1pr60yKTyyfTNp');
+            background-image: url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=1000&auto=format&fit=crop');
             background-size: cover;
             background-position: center;
             opacity: 0.5;
@@ -48,6 +48,7 @@
             background: linear-gradient(135deg, rgba(244, 241, 234, 0.92) 0%, rgba(220, 215, 205, 0.8) 100%);
             backdrop-filter: blur(3px);
             z-index: -1;
+            pointer-events: none; /* 確保不會擋到滑鼠互動 */
         }
 
         /* 詩詞容器：直書、由右至左 */
@@ -77,20 +78,16 @@
             font-weight: 300;
             cursor: default;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
-            /* 消散與回歸的動畫過渡：2秒的漸變，看起來像霧氣 */
-            transition: opacity 2s cubic-bezier(0.4, 0, 0.2, 1), 
-                        filter 2s cubic-bezier(0.4, 0, 0.2, 1), 
-                        transform 2s cubic-bezier(0.4, 0, 0.2, 1);
+            /* 單純控制透明度的過渡動畫：2秒漸變 */
+            transition: opacity 2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* 字消失時的狀態 */
-        .char.hidden {
+        /* 字被碰到時的狀態：變成完全透明，但保留原位 */
+        .char.transparent {
             opacity: 0;
-            filter: blur(8px);
-            /* 移除 transform 位移，確保字在原位消失，不影響排版 */
         }
 
-        /* 新增：詩詞輸入框區域 */
+        /* 詩詞輸入框區域 */
         .input-panel {
             position: fixed;
             bottom: 2rem;
@@ -116,6 +113,7 @@
             outline: none;
             resize: none;
             width: 250px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
         }
         .input-panel button {
             background: #a83b3b;
@@ -126,6 +124,10 @@
             cursor: pointer;
             font-family: 'Noto Serif TC', serif;
             font-weight: 600;
+            transition: background 0.3s;
+        }
+        .input-panel button:hover {
+            background: #8c3030;
         }
 
         /* 中國風印章裝飾 */
@@ -148,6 +150,7 @@
             cursor: pointer;
             transition: opacity 0.3s, transform 0.3s;
             user-select: none;
+            z-index: 10;
         }
 
         .seal:hover {
@@ -159,12 +162,13 @@
         @media (max-width: 768px) {
             .char { font-size: 2.5rem; }
             .poem-container { height: 70vh; margin: 15vh auto; gap: 2rem; }
+            .input-panel { right: 2rem; bottom: 6rem; }
         }
     </style>
 </head>
 <body>
 
-    <!-- 新增背景圖層 -->
+    <!-- 背景圖層 -->
     <div class="custom-bg"></div>
 
     <!-- 背景霧面遮罩 -->
@@ -178,15 +182,14 @@
     <!-- 右下角印章（點擊可重置全部文字） -->
     <div class="seal" onclick="resetAll()" title="重新凝聚">忘歸</div>
 
-    <!-- 新增：輸入框區塊 -->
+    <!-- 輸入框區塊 -->
     <div class="input-panel">
         <textarea id="custom-poem-input" rows="4" placeholder="在此輸入你的心緒...&#10;每行請用換行隔開"></textarea>
         <button onclick="applyNewPoem()">提筆入夢</button>
     </div>
 
     <script>
-        // 這裡選用納蘭性德的詩詞，訴說感情中初見的美好與易變的無奈
-        // 配合文字會消失的特性，非常切合「等閒變卻故人心」的意境
+        // 預設詩詞
         let poemText = [
             "人生若只如初見",
             "何事秋風悲畫扇",
@@ -199,7 +202,7 @@
 
         // 初始化網頁：將詩句拆解成單個字，並包裝成 span 標籤
         function initPoem() {
-            // 每次初始化前先清空容器，避免重複疊加
+            // 清空容器，避免重複疊加
             container.innerHTML = '';
             charElements = [];
 
@@ -214,11 +217,11 @@
                     charSpan.className = 'char';
                     charSpan.textContent = char;
                     
-                    // 加入滑鼠互動事件 (Touch 事件也支援，方便手機操作)
-                    charSpan.addEventListener('mouseenter', () => vanishChar(charSpan));
+                    // 滑鼠碰到時變透明
+                    charSpan.addEventListener('mouseenter', () => fadeChar(charSpan));
                     charSpan.addEventListener('touchstart', (e) => {
-                        e.preventDefault(); // 避免手機點擊引發其他行為
-                        vanishChar(charSpan);
+                        e.preventDefault(); 
+                        fadeChar(charSpan);
                     }, { passive: false });
 
                     lineDiv.appendChild(charSpan);
@@ -228,28 +231,28 @@
             });
         }
 
-        // 核心邏輯：讓字消失，並設定計時器讓它回來
-        function vanishChar(element) {
-            // 如果已經在隱藏狀態，就不重複執行
-            if (element.classList.contains('hidden')) return;
+        // 核心邏輯：讓字變透明，並設定計時器讓它慢慢浮現
+        function fadeChar(element) {
+            // 如果已經在透明狀態，就不重複執行
+            if (element.classList.contains('transparent')) return;
 
-            // 加上 hidden class，觸發 CSS 漸變讓它消失
-            element.classList.add('hidden');
+            // 加上 transparent class，觸發 opacity 漸變
+            element.classList.add('transparent');
 
-            // 設定 4 秒後自動回來 (4000 毫秒)
+            // 設定 3 秒後自動回來 (3000 毫秒)
             setTimeout(() => {
-                element.classList.remove('hidden');
-            }, 4000);
+                element.classList.remove('transparent');
+            }, 3000);
         }
 
         // 印章按鈕功能：一鍵讓所有字立刻浮現
         function resetAll() {
             charElements.forEach(char => {
-                char.classList.remove('hidden');
+                char.classList.remove('transparent');
             });
         }
 
-        // 新增：寫入新詩詞的功能
+        // 寫入新詩詞的功能
         function applyNewPoem() {
             const inputVal = document.getElementById('custom-poem-input').value;
             if (!inputVal.trim()) return; // 空白就不處理
