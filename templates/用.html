@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>專屬英文單字卡</title>
+  <style>
+    :root {
+      --rose-50: #f1ffff;
+      --rose-100: #e4ffff;
+      --rose-300: #a4fdfc;
+      --rose-400: #71fbf6;
+      --rose-500: #3ff4f1;
+      --rose-600: #e11d48;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--rose-50);
+      color: var(--slate-800);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    /* 頂部導覽列 */
+    header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 900px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    h1 {
+      color: var(--rose-400);
+      font-size: 1.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    .upload-btn {
+      background-color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      color: var(--slate-500);
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .upload-btn:hover {
+      color: var(--rose-500);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    /* 錯誤訊息 */
+    #errorMsg {
+      position: absolute;
+      top: 5rem;
+      background-color: #fee2e2;
+      color: #dc2626;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      display: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* 狀態指示 */
+    .status {
+      color: var(--slate-400);
+      font-size: 0.875rem;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.5rem;
+      margin-top: 4rem; /* 避開 header */
+    }
+
+    /* 字卡區域 */
+    .card-container {
+      perspective: 1000px;
+      width: 100%;
+      max-width: 400px;
+      aspect-ratio: 4 / 3;
+      cursor: pointer;
+    }
+
+    .card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-style: preserve-3d;
+    }
+
+    .card.flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-color: white;
+      border-radius: 1.5rem;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      border: 1px solid var(--rose-100);
+      backface-visibility: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .card-front h2 {
+      font-size: 3rem;
+      color: var(--slate-700);
+      word-break: break-word;
+    }
+
+    .card-back {
+      transform: rotateY(180deg);
+    }
+
+    .pos-tag {
+      background-color: var(--rose-100);
+      color: var(--rose-600);
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+      display: inline-block;
+    }
+
+    .meaning {
+      font-size: 1.875rem;
+      color: var(--slate-800);
+      margin-bottom: 1rem;
+      font-weight: bold;
+    }
+
+    .divider {
+      width: 100%;
+      height: 1px;
+      background-color: var(--rose-50);
+      margin-bottom: 1rem;
+    }
+
+    .example {
+      color: var(--slate-500);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      font-style: italic;
+    }
+
+    .hint {
+      position: absolute;
+      bottom: 1.5rem;
+      color: var(--rose-300);
+      font-size: 0.75rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.6;
+    }
+
+    /* 底部控制區 */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+
+    .nav-btn {
+      background-color: white;
+      border: none;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      color: var(--slate-400);
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-btn:hover {
+      color: var(--rose-500);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+
+    .nav-btn:active {
+      transform: scale(0.95);
+    }
+
+    .keyboard-hint {
+      font-size: 0.75rem;
+      color: var(--slate-400);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Words for You</h1>
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+      <svg xmlns="http://www.w3.org/-2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+      匯入 CSV
+    </button>
+    <input type="file" id="fileInput" accept=".csv">
+  </header>
+
+  <div id="errorMsg"></div>
+
+  <div class="status" id="statusText">1 / 5</div>
+
+  <div class="card-container" id="cardContainer">
+    <div class="card" id="cardElement">
+      
+      <!-- 正面 -->
+      <div class="card-face card-front">
+        <h2 id="cardWord">Crush</h2>
+        <div class="hint">點擊翻面</div>
+      </div>
+
+      <!-- 背面 -->
+      <div class="card-face card-back">
+        <div class="pos-tag" id="cardPos">n.</div>
+        <div class="meaning" id="cardMeaning">迷戀、暗戀</div>
+        <div class="divider"></div>
+        <div class="example" id="cardExample">"I have a huge crush on you, but I'm too afraid to say it. (我深深地暗戀著你，卻不敢說出口。)"</div>
+        <div class="hint">點擊翻回</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="nav-btn" id="prevBtn">
+      <svg xmlns="http://www.w3.org/-2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
+    
+    <div class="keyboard-hint">用鍵盤左右鍵也可以切換喔</div>
+    
+    <button class="nav-btn" id="nextBtn">
+      <svg xmlns="http://www.w3.org/-2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+  </div>
+
+  <script>
+    // 預設的感情相關單字卡 (一樣帶著微酸的感覺)
+    const defaultCards = [
+      { word: "Crush", partOfSpeech: "n.", meaning: "迷戀、暗戀", example: "I have a huge crush on you, but I'm too afraid to say it. (我深深地暗戀著你，卻不敢說出口。)" },
+      { word: "Yearn", partOfSpeech: "v.", meaning: "渴望、思念", example: "Every night, I yearn for the warmth of your embrace. (每個夜晚，我都渴望你溫暖的擁抱。)" },
+      { word: "Cherish", partOfSpeech: "v.", meaning: "珍視、鍾愛", example: "I will cherish every moment we spend together, even if it ends. (我會珍視我們共度的每一刻，即使最終會結束。)" },
+      { word: "Unrequited", partOfSpeech: "adj.", meaning: "單方面的、得不到回報的", example: "Unrequited love is like a silent storm in the heart. (單相思就像是一場內心無聲的風暴。)" },
+      { word: "Vulnerable", partOfSpeech: "adj.", meaning: "脆弱的、易受傷的", example: "Falling in love means allowing yourself to be vulnerable with someone. (墜入愛河意味著允許自己在某人面前展露脆弱。)" }
+    ];
+
+    let cards = [...defaultCards];
+    let currentIndex = 0;
+    let isFlipped = false;
+
+    // DOM 元素選取
+    const cardContainer = document.getElementById('cardContainer');
+    const cardElement = document.getElementById('cardElement');
+    const cardWord = document.getElementById('cardWord');
+    const cardPos = document.getElementById('cardPos');
+    const cardMeaning = document.getElementById('cardMeaning');
+    const cardExample = document.getElementById('cardExample');
+    const statusText = document.getElementById('statusText');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const fileInput = document.getElementById('fileInput');
+    const errorMsg = document.getElementById('errorMsg');
+
+    // 更新畫面渲染
+    function renderCard() {
+      if (cards.length === 0) return;
+      const currentCard = cards[currentIndex];
+      
+      cardWord.textContent = currentCard.word;
+      cardPos.textContent = currentCard.partOfSpeech;
+      cardMeaning.textContent = currentCard.meaning;
+      cardExample.textContent = `"${currentCard.example}"`;
+      
+      statusText.textContent = `${currentIndex + 1} / ${cards.length}`;
+    }
+
+    // 翻面邏輯
+    function toggleFlip() {
+      isFlipped = !isFlipped;
+      if (isFlipped) {
+        cardElement.classList.add('flipped');
+      } else {
+        cardElement.classList.remove('flipped');
+      }
+    }
+
+    // 上一張
+    function goPrev() {
+      if (cards.length === 0) return;
+      isFlipped = false;
+      cardElement.classList.remove('flipped');
+      
+      setTimeout(() => {
+        currentIndex = currentIndex === 0 ? cards.length - 1 : currentIndex - 1;
+        renderCard();
+      }, 150);
+    }
+
+    // 下一張
+    function goNext() {
+      if (cards.length === 0) return;
+      isFlipped = false;
+      cardElement.classList.remove('flipped');
+      
+      setTimeout(() => {
+        currentIndex = currentIndex === cards.length - 1 ? 0 : currentIndex + 1;
+        renderCard();
+      }, 150);
+    }
+
+    // 顯示錯誤訊息
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.style.display = 'block';
+      setTimeout(() => {
+        errorMsg.style.display = 'none';
+      }, 5000);
+    }
+
+    // 處理 CSV 解析
+    function parseCSV(text) {
+      const lines = text.split('\n').filter(line => line.trim() !== '');
+      const parsedCards = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        // 簡單處理 CSV 的逗號和引號
+        const match = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+        if (match.length >= 4) {
+          parsedCards.push({
+            word: match[0].replace(/^"|"$/g, '').trim(),
+            partOfSpeech: match[1].replace(/^"|"$/g, '').trim(),
+            meaning: match[2].replace(/^"|"$/g, '').trim(),
+            example: match[3].replace(/^"|"$/g, '').trim()
+          });
+        }
+      }
+
+      if (parsedCards.length === 0) {
+        showError("找不到符合的單字格式耶... 記得要有「單字, 詞性, 中文, 例句」四個欄位喔小寶！");
+        return;
+      }
+
+      // 移除標題列
+      if (parsedCards[0].word.includes('單字') || parsedCards[0].word.toLowerCase().includes('word') || parsedCards[0].meaning.includes('中文')) {
+        parsedCards.shift();
+      }
+
+      if (parsedCards.length > 0) {
+        cards = parsedCards;
+        currentIndex = 0;
+        isFlipped = false;
+        cardElement.classList.remove('flipped');
+        renderCard();
+      }
+    }
+
+    // 事件監聽器設定
+    cardContainer.addEventListener('click', toggleFlip);
+    
+    prevBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      goPrev();
+    });
+    
+    nextBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      goNext();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') goPrev();
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault(); // 避免空白鍵捲動網頁
+        toggleFlip();
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        parseCSV(event.target.result);
+      };
+      reader.onerror = () => {
+        showError("讀取檔案失敗了寶寶，再試一次好嗎？");
+      };
+      reader.readAsText(file);
+      
+      // 清空讓下次能重複選同檔案
+      e.target.value = '';
+    });
+
+    // 初始渲染
+    renderCard();
+
+  </script>
+</body>
+</html>
